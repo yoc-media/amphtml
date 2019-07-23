@@ -27,5 +27,7 @@ export function visx(global, data) {
   adTag.setAttribute('data-ad-unit', data.auid);
   adTag.setAttribute('data-amp', '');
   global.document.getElementById('c').appendChild(adTag);
-  loadScript(global, 'http://localhost:8082/tmp/tag.js');
+  loadScript(global, 'http://localhost:8082/tmp/tag.js', undefined, () => {
+    global.context.noContentAvailable();
+  });
 }
