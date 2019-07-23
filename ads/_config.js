@@ -1021,6 +1021,8 @@ export const adConfig = {
     renderStartImplemented: true,
   },
 
+  'visx': {},
+
   'viralize': {
     renderStartImplemented: true,
   },
