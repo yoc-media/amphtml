@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {validateData, writeScript} from '../3p/3p';
+import {validateData, loadScript} from '../3p/3p';
 
 /**
  * @param {!Window} global
@@ -27,5 +27,5 @@ export function visx(global, data) {
   adTag.setAttribute('data-ad-unit', data.auid);
   adTag.setAttribute('data-amp', '');
   global.document.getElementById('c').appendChild(adTag);
-  writeScript(global, 'http://localhost:8082/tmp/tag.js');
+  loadScript(global, 'http://localhost:8082/tmp/tag.js');
 }
