@@ -11,3 +11,5 @@ open: http://localhost:8000/examples/amp-ad-yoc.html
 TODO:
 
 prepare ad unit(s) with 100% fill rate for the examples
+
+checklist: https://github.com/ampproject/amphtml/tree/master/3p#ads
