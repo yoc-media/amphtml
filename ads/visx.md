@@ -23,14 +23,14 @@ limitations under the License.
     width="320"
     height="50"
     type="visx"
-    data-auid="907625">
-</amp-ad>
+    data-auid="907625"
+></amp-ad>
 ```
 
 ## Configuration
 
 For configuration details and to generate your tags, please contact https://yoc.com/visx/.
 
-Supported parameters:
+## Required parameters:
 
 - `data-auid`

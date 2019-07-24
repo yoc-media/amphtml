@@ -21,12 +21,14 @@ import {validateData, loadScript} from '../3p/3p';
  * @param {!Object} data
  */
 export function visx(global, data) {
-  const adTag = global.document.createElement('div');
   validateData(data, ['auid']);
+
+  const adTag = global.document.createElement('div');
+
   adTag.setAttribute('data-visx', '');
   adTag.setAttribute('data-ad-unit', data.auid);
-  adTag.setAttribute('data-amp', '');
   global.document.getElementById('c').appendChild(adTag);
+
   loadScript(global, 'http://localhost:8082/tmp/tag.js', undefined, () => {
     global.context.noContentAvailable();
   });
