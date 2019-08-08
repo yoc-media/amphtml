@@ -19,6 +19,7 @@ const babelify = require('babelify');
 const browserify = require('browserify');
 const colors = require('ansi-colors');
 const conf = require('../build.conf');
+const del = require('del');
 const devnull = require('dev-null');
 const fs = require('fs-extra');
 const gulp = require('gulp');
@@ -310,14 +311,13 @@ exports.getGraph = function(entryModules, config) {
     debug: true,
     deps: true,
     detectGlobals: false,
+    fast: true,
   })
     // The second stage are transforms that closure compiler supports
     // directly and which we don't want to apply during deps finding.
     .transform(babelify, {
       compact: false,
-      plugins: [
-        require.resolve('babel-plugin-transform-es2015-modules-commonjs'),
-      ],
+      plugins: ['transform-es2015-modules-commonjs'],
     });
   // This gets us the actual deps. We collect them in an array, so
   // we can sort them prior to building the dep tree. Otherwise the tree
@@ -456,9 +456,16 @@ function setupBundles(graph) {
  * @param {!Object} config
  */
 function transformPathsToTempDir(graph, config) {
-  if (!isTravisBuild()) {
-    log('Writing transforms to', colors.cyan(graph.tmp));
+  if (isTravisBuild()) {
+    // New line after all the compilation progress dots on Travis.
+    console.log('\n');
   }
+  log(
+    'Performing single-pass',
+    colors.cyan('babel'),
+    'transforms in',
+    colors.cyan(graph.tmp)
+  );
   // `sorted` will always have the files that we need.
   graph.sorted.forEach(f => {
     // For now, just copy node_module files instead of transforming them.
@@ -477,7 +484,9 @@ function transformPathsToTempDir(graph, config) {
       fs.outputFileSync(`${graph.tmp}/${f}`, code);
       fs.outputFileSync(`${graph.tmp}/${f}.map`, JSON.stringify(map));
     }
+    process.stdout.write('.');
   });
+  console.log('\n');
 }
 
 // Returns the extension bundle config for the given filename or null.
@@ -555,6 +564,7 @@ exports.singlePassCompile = async function(entryModule, options) {
     .then(intermediateBundleConcat)
     .then(eliminateIntermediateBundles)
     .then(thirdPartyConcat)
+    .then(cleanupWeakModuleFiles)
     .catch(err => {
       err.showStack = false; // Useless node_modules stack
       throw err;
@@ -668,10 +678,26 @@ function postPrepend(extension, prependContents) {
   });
 }
 
+/**
+ * Cleans up the weak module files written out by closure compiler.
+ * @return {!Promise}
+ */
+function cleanupWeakModuleFiles() {
+  const weakModuleJsFile = 'dist/$weak$.js';
+  const weakModuleMapFile = 'dist/$weak$.js.map';
+  return del([weakModuleJsFile, weakModuleMapFile]);
+}
+
 function compile(flagsArray) {
+  if (isTravisBuild()) {
+    log(
+      'Minifying single-pass runtime targets with',
+      colors.cyan('closure-compiler')
+    );
+  }
   // TODO(@cramforce): Run the post processing step
   return new Promise(function(resolve, reject) {
-    return gulp
+    gulp
       .src(srcs, {base: transformDir})
       .pipe(gulpIf(shouldShortenLicense, shortenLicense()))
       .pipe(sourcemaps.init({loadMaps: true}))
