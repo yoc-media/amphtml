@@ -14,22 +14,11 @@
  * limitations under the License.
  */
 
-import {validateData, loadScript} from '../3p/3p';
+import {loadScript} from '../3p/3p';
 
 /**
  * @param {!Window} global
- * @param {!Object} data
  */
-export function visx(global, data) {
-  validateData(data, ['auid']);
-
-  const adTag = global.document.createElement('div');
-
-  adTag.setAttribute('data-visx', '');
-  adTag.setAttribute('data-ad-unit', data.auid);
-  global.document.getElementById('c').appendChild(adTag);
-
-  loadScript(global, '/examples/visx-tag.js', undefined, () => {
-    global.context.noContentAvailable();
-  });
+export function visx_tag_in_tag(global) {
+  loadScript(global, '/examples/visx-tag-in-tag.js');
 }

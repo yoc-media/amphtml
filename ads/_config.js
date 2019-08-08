@@ -1030,6 +1030,8 @@ export const adConfig = {
     renderStartImplemented: true,
   },
 
+  'visx_tag_in_tag': {},
+
   'viralize': {
     renderStartImplemented: true,
   },
