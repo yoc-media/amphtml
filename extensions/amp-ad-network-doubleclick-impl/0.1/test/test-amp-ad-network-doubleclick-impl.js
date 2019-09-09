@@ -949,37 +949,37 @@ describes.realWin('amp-ad-network-doubleclick-impl', realWinConfig, env => {
         expect(url).to.not.match(/(\?|&)npa=(&|$)/);
       }));
 
-    it('should include msz/psz/fws if in experiment', () => {
-      sandbox
-        .stub(impl, 'randomlySelectUnsetExperiments_')
-        .returns({flexAdSlots: '21063174'});
-      impl.setPageLevelExperiments();
-      return impl.getAdUrl().then(url => {
-        expect(url).to.match(/(\?|&)msz=[0-9]+x-1(&|$)/);
-        expect(url).to.match(/(\?|&)psz=[0-9]+x-1(&|$)/);
-        expect(url).to.match(/(\?|&)fws=[0-9]+(&|$)/);
-        expect(url).to.match(/(=|%2C)21063174(%2C|&|$)/);
-      });
-    });
-
-    it('should not include msz/psz if not in flexAdSlots control', () => {
+    it('should include msz/psz/fws if in holdback control', () => {
       sandbox
         .stub(impl, 'randomlySelectUnsetExperiments_')
         .returns({flexAdSlots: '21063173'});
       impl.setPageLevelExperiments();
       return impl.getAdUrl().then(url => {
-        expect(url).to.not.match(/(\?|&)msz=/);
-        expect(url).to.not.match(/(\?|&)psz=/);
-        expect(url).to.not.match(/(\?|&)fws=/);
+        expect(url).to.match(/(\?|&)msz=[0-9]+x-1(&|$)/);
+        expect(url).to.match(/(\?|&)psz=[0-9]+x-1(&|$)/);
+        expect(url).to.match(/(\?|&)fws=[0-9]+(&|$)/);
         expect(url).to.match(/(=|%2C)21063173(%2C|&|$)/);
       });
     });
 
-    it('should not include msz/psz if not in flexAdSlots experiment', () => {
+    it('should not include msz/psz if not in holdback experiment', () => {
+      sandbox
+        .stub(impl, 'randomlySelectUnsetExperiments_')
+        .returns({flexAdSlots: '21063174'});
+      impl.setPageLevelExperiments();
       return impl.getAdUrl().then(url => {
         expect(url).to.not.match(/(\?|&)msz=/);
         expect(url).to.not.match(/(\?|&)psz=/);
         expect(url).to.not.match(/(\?|&)fws=/);
+        expect(url).to.match(/(=|%2C)21063174(%2C|&|$)/);
+      });
+    });
+
+    it('should include msz/psz by default', () => {
+      return impl.getAdUrl().then(url => {
+        expect(url).to.match(/(\?|&)msz=[0-9]+x-1(&|$)/);
+        expect(url).to.match(/(\?|&)psz=[0-9]+x-1(&|$)/);
+        expect(url).to.match(/(\?|&)fws=[0-9]+(&|$)/);
         expect(url).to.not.match(/(=|%2C)2106317(3|4)(%2C|&|$)/);
       });
     });
@@ -1740,19 +1740,6 @@ describes.realWin(
       });
       afterEach(() => {
         toggleExperiment(env.win, 'envDfpInvOrigDeprecated', false);
-      });
-
-      it('should set invalid origin fix experiment if on canonical', () => {
-        randomlySelectUnsetExperimentsStub.returns({});
-        impl.setPageLevelExperiments();
-        expect(impl.experimentIds.includes('21060933')).to.be.true;
-      });
-
-      it('should not set invalid origin fix if exp on', () => {
-        toggleExperiment(env.win, 'envDfpInvOrigDeprecated', true);
-        randomlySelectUnsetExperimentsStub.returns({});
-        impl.setPageLevelExperiments();
-        expect(impl.experimentIds.includes('21060933')).to.be.true;
       });
 
       it('should select SRA experiments', () => {

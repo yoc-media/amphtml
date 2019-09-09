@@ -37,7 +37,7 @@ import {whenUpgradedToCustomElement} from '../../../src/dom';
 const AMP_ANALYTICS_HEADER = 'X-AmpAnalytics';
 
 /** @const {number} */
-const MAX_URL_LENGTH = 16384;
+const MAX_URL_LENGTH = 15360;
 
 /** @enum {string} */
 const AmpAdImplementation = {
@@ -228,8 +228,13 @@ export function groupAmpAdsByType(win, type, groupFn) {
   const ampAdSelector = r =>
     r.element./*OK*/ querySelector(`amp-ad[type=${type}]`);
   const {documentElement} = win.document;
+  // TODO(lannka): should avoid this type casting by moving the `getMeasuredResources`
+  // logic here.
+  const resources = /** @type {!../../../src/service/resources-impl.ResourcesImpl} */ (Services.resourcesForDoc(
+    documentElement
+  ));
   return (
-    Services.resourcesForDoc(documentElement)
+    resources
       .getMeasuredResources(win, r => {
         const isAmpAdType =
           r.element.tagName == 'AMP-AD' &&

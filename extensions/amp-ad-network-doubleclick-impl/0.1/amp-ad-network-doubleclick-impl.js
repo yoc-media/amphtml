@@ -293,7 +293,7 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
     this.shouldSandbox_ = false;
 
     /** @private {boolean} */
-    this.sendFlexibleAdSlotParams_ = false;
+    this.sendFlexibleAdSlotParams_ = true;
 
     /**
      * Set after the ad request is built.
@@ -366,12 +366,6 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
    * @visibleForTesting
    */
   setPageLevelExperiments(urlExperimentId) {
-    if (
-      !isCdnProxy(this.win) &&
-      !isExperimentOn(this.win, 'expDfpInvOrigDeprecated')
-    ) {
-      this.experimentIds.push('21060933');
-    }
     let forcedExperimentId;
     if (urlExperimentId) {
       forcedExperimentId = {
@@ -421,10 +415,9 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
       expName => setExps[expName] && this.experimentIds.push(setExps[expName])
     );
     if (
-      setExps[FLEXIBLE_AD_SLOTS_EXP] &&
       setExps[FLEXIBLE_AD_SLOTS_EXP] == FLEXIBLE_AD_SLOTS_BRANCHES.EXPERIMENT
     ) {
-      this.sendFlexibleAdSlotParams_ = true;
+      this.sendFlexibleAdSlotParams_ = false;
     }
   }
 
@@ -1064,7 +1057,7 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
       devAssert(this.iframe);
       Navigation.installAnchorClickInterceptor(
         this.getAmpDoc(),
-        this.iframe.contentWindow
+        devAssert(this.iframe.contentWindow)
       );
     }
     if (this.ampAnalyticsConfig_) {

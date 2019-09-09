@@ -53,8 +53,10 @@ class AmpCarousel extends AMP.BaseElement {
     );
     this.registerAction(
       'toggleAutoplay',
-      ({args = {}}) => {
-        this.toggleAutoplay_(args['toggleOn']);
+      ({args}) => {
+        // args will be `null` if not present, so we cannot use a default value above
+        const toggle = args ? args['toggleOn'] : undefined;
+        this.toggleAutoplay_(toggle);
       },
       ActionTrust.LOW
     );
@@ -132,6 +134,7 @@ class AmpCarousel extends AMP.BaseElement {
 
     // Setup actions and listeners
     this.setupActions_();
+    this.stopTouchMovePropagation_();
     this.element.addEventListener('indexchange', event => {
       this.onIndexChanged_(event);
     });
@@ -142,9 +145,18 @@ class AmpCarousel extends AMP.BaseElement {
     this.nextButton_.addEventListener('click', () => this.interactionNext());
 
     const owners = Services.ownersForDoc(element);
+    const isIos = Services.platformFor(this.win).isIos();
     this.childLayoutManager_ = new ChildLayoutManager({
       ampElement: this,
       intersectionElement: this.scrollContainer_,
+      // For iOS, we cannot trigger layout during scrolling or the UI will
+      // flicker, so tell the layout to simply queue the changes, which we
+      // flush after scrolling stops.
+      queueChanges: isIos,
+      // For iOS, we queue changes until scrolling stops, which we detect
+      // ~200ms after it actually stops. Load items earlier so they have time
+      // to load.
+      nearbyMarginInPercent: isIos ? 200 : 100,
       viewportIntersectionCallback: (child, isIntersecting) => {
         if (isIntersecting) {
           owners.scheduleResume(this.element, child);
@@ -153,8 +165,11 @@ class AmpCarousel extends AMP.BaseElement {
         }
       },
     });
+
     this.childLayoutManager_.updateChildren(this.slides_);
     this.carousel_.updateSlides(this.slides_);
+    // Need to wait for slides to exist first.
+    this.carousel_.goToSlide(Number(this.element.getAttribute('slide') || '0'));
     // Signal for runtime to check children for layout.
     return this.mutateElement(() => {});
   }
@@ -320,6 +335,7 @@ class AmpCarousel extends AMP.BaseElement {
     });
     this.toggleAutoplay_(autoAdvance);
     this.updateType_(type, slides);
+
     this.updateUi_();
   }
 
@@ -562,9 +578,13 @@ class AmpCarousel extends AMP.BaseElement {
   }
 
   /**
-   * Update the UI (buttons) for the new scroll position.
+   * Update the UI (buttons) for the new scroll position. This occurs when
+   * scrolling has settled.
    */
   onScrollPositionChanged_() {
+    // Now that scrolling has settled, flush any layout changes for iOS since
+    // it will not cause flickering.
+    this.childLayoutManager_.flushChanges();
     this.updateUi_();
   }
 
@@ -590,6 +610,24 @@ class AmpCarousel extends AMP.BaseElement {
     this.element.dispatchCustomEvent(name, data);
     this.hadTouch_ = this.hadTouch_ || actionSource == ActionSource.TOUCH;
     this.updateCurrentIndex_(index);
+  }
+
+  /**
+   * Stops touchmove events from propagating up to the viewer. Ideally we would
+   * have a separate piece of logic to not forward touchmoves if they occurred
+   * in a scrollable container instead of stopping propagation entirely for
+   * horizontal and vertical swipes. See:
+   * https://github.com/ampproject/amphtml/issues/4754.
+   * @private
+   */
+  stopTouchMovePropagation_() {
+    this.scrollContainer_.addEventListener(
+      'touchmove',
+      event => event.stopPropagation(),
+      {
+        passive: true,
+      }
+    );
   }
 }
 

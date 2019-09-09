@@ -159,6 +159,8 @@ export function installFriendlyIframeEmbed(
 
   setStyle(iframe, 'visibility', 'hidden');
   iframe.setAttribute('referrerpolicy', 'unsafe-url');
+  iframe.setAttribute('marginheight', '0');
+  iframe.setAttribute('marginwidth', '0');
 
   // Pre-load extensions.
   if (spec.extensionIds) {
@@ -420,7 +422,12 @@ export class FriendlyIframeEmbed {
    * Ensures that all resources from this iframe have been released.
    */
   destroy() {
-    Services.resourcesForDoc(this.iframe).removeForChildWindow(this.win);
+    // TODO(lannka): should avoid this type casting by moving the `removeForChildWindow`
+    // logic here.
+    const resources = /** @type {!./service/resources-impl.ResourcesImpl} */ (Services.resourcesForDoc(
+      this.iframe
+    ));
+    resources.removeForChildWindow(this.win);
     disposeServicesForEmbed(this.win);
     if (this.ampdoc) {
       this.ampdoc.dispose();
@@ -559,7 +566,7 @@ export class FriendlyIframeEmbed {
   }
 
   /**
-   * @return {!./service/resources-impl.ResourcesDef}
+   * @return {!./service/resources-interface.ResourcesInterface}
    * @private
    */
   getResources_() {
@@ -848,35 +855,31 @@ export class FriendlyIframeEmbed {
  * @return {!Promise}
  */
 export function whenContentIniLoad(elementOrAmpDoc, hostWin, rect) {
-  return Services.resourcesForDoc(elementOrAmpDoc)
-    .getResourcesInRect(hostWin, rect)
-    .then(resources => {
-      const promises = [];
-      resources.forEach(r => {
-        if (!EXCLUDE_INI_LOAD.includes(r.element.tagName)) {
-          promises.push(r.loadedOnce());
-        }
-      });
-      return Promise.all(promises);
+  // TODO(lannka): should avoid this type casting by moving the `getResourcesInRect`
+  // logic here.
+  const resources = /** @type {!./service/resources-impl.ResourcesImpl} */ (Services.resourcesForDoc(
+    elementOrAmpDoc
+  ));
+  return resources.getResourcesInRect(hostWin, rect).then(resources => {
+    const promises = [];
+    resources.forEach(r => {
+      if (!EXCLUDE_INI_LOAD.includes(r.element.tagName)) {
+        promises.push(r.loadedOnce());
+      }
     });
+    return Promise.all(promises);
+  });
 }
 
 /**
  * Install polyfills in the child window (friendly iframe).
  * @param {!Window} parentWin
  * @param {!Window} childWin
- * @suppress {suspiciousCode}
  */
 function installPolyfillsInChildWindow(parentWin, childWin) {
   installDocContains(childWin);
   installDOMTokenList(childWin);
-  // TODO(jridgewell): Ship custom-elements-v1. For now, we use this hack so it
-  // is DCE'd from production builds. Note: When the hack is removed, remove the
-  // @suppress {suspiciousCode} annotation at the top of this function.
-  if (
-    (false && isExperimentOn(parentWin, 'custom-elements-v1')) ||
-    getMode().test
-  ) {
+  if (isExperimentOn(parentWin, 'custom-elements-v1') || getMode().test) {
     installCustomElements(childWin);
   } else {
     installRegisterElement(childWin, 'auto');
