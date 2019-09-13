@@ -273,6 +273,7 @@ import {zedo} from '../ads/zedo';
 import {zen} from '../ads/zen';
 import {zergnet} from '../ads/zergnet';
 import {zucks} from '../ads/zucks';
+import {yoc_amp} from '../ads/yoc_amp';
 
 /**
  * Whether the embed type may be used with amp-embed tag.
@@ -549,6 +550,7 @@ register('zen', zen);
 register('zergnet', zergnet);
 register('zucks', zucks);
 register('speakol', speakol);
+register('yoc_amp', yoc_amp);
 
 // For backward compat, we always allow these types without the iframe
 // opting in.

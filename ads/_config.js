@@ -1153,6 +1153,8 @@ const adConfig = jsonConfiguration({
     prefetch: 'https://dup.baidustatic.com/js/dm.js',
     renderStartImplemented: true,
   },
+
+  'yoc_amp': {}
 });
 
 export {adConfig};
