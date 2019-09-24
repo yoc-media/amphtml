@@ -52,26 +52,19 @@
   }
 
   var container = document.querySelector('#c');
-  var sameOriginIframe = document.createElement('iframe');
-  sameOriginIframe.frameBorder = 'no';
-  sameOriginIframe.width = container.clientWidth;
-  sameOriginIframe.height = container.clientHeight;
-
-  container.appendChild(sameOriginIframe);
-  var ifrWindow = sameOriginIframe.contentWindow;
-  var adTag = ifrWindow.document.createElement('div');
+  var adTag = document.createElement('div');
 
   adTag.setAttribute('data-visx', '');
   Object.entries(props).forEach(function(prop) {
     adTag.setAttribute(prop[0], prop[1]);
   });
-  ifrWindow.document.body.appendChild(adTag);
+  container.appendChild(adTag);
 
-  var visxTag = ifrWindow.document.createElement('script');
+  var visxTag = document.createElement('script');
   visxTag.async = true;
   visxTag.src = '/examples/visx-tag.js';
 
-  ifrWindow.document.head.appendChild(visxTag);
+  document.head.appendChild(visxTag);
 
   function decodeParam(str) {
     return decodeURIComponent(str.replace(/\+/g, ' '));
