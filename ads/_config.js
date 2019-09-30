@@ -1038,6 +1038,10 @@ export const adConfig = {
     renderStartImplemented: true,
   },
 
+  'visx_AMP_CONTEXT_DATA': {
+    renderStartImplemented: true,
+  },
+
   'viralize': {
     renderStartImplemented: true,
   },
