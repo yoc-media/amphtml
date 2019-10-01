@@ -34,6 +34,6 @@ limitations under the License.
 * `data-ad-unit-desktop`
 * `data-ad-unit-smartphone`
 * `data-ad-unit-tablet`
-* `data-overlay-check`
+* `data-is-mobile`
 * `data-page-url`
 * `data-targeting-*`

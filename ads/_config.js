@@ -1061,7 +1061,7 @@ const adConfig = jsonConfiguration({
 
   'visx': {
     prefetch: 'https://s.visx.net/tag.js',
-    preconnect: ['https://t.visx.net'],
+    preconnect: 'https://t.visx.net',
     renderStartImplemented: true,
   },
 

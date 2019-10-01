@@ -21,9 +21,9 @@ const AD_UNIT = 'adUnit';
 const AD_UNIT_DESKTOP = 'adUnitDesktop';
 const AD_UNIT_SMARTPHONE = 'adUnitSmartphone';
 const AD_UNIT_TABLET = 'adUnitTablet';
-const OVERLAY_CHECK = 'overlayCheck';
+const IS_MOBILE = 'isMobile';
 const PAGE_URL = 'pageUrl';
-const TARGETING_RE = /^targeting[A-Z]/;
+const TARGETING_PROPERTY_RE = /^targeting[A-Z]/;
 
 /**
  * @param {!Window} global
@@ -31,21 +31,23 @@ const TARGETING_RE = /^targeting[A-Z]/;
  */
 export function visx(global, data) {
   const dataKeys = Object.keys(data);
-  const targetingDataKeys = dataKeys.filter(dataKey =>
-    TARGETING_RE.test(dataKey)
+  const targetingProps = dataKeys.filter(dataKey =>
+    TARGETING_PROPERTY_RE.test(dataKey)
   );
+  const validateProps = [
+    AD_UNIT,
+    AD_UNIT_DESKTOP,
+    AD_UNIT_SMARTPHONE,
+    AD_UNIT_TABLET,
+    IS_MOBILE,
+    PAGE_URL,
+  ].concat(targetingProps);
 
-  validateData(
-    data,
-    [],
-    [
-      AD_UNIT,
-      AD_UNIT_DESKTOP,
-      AD_UNIT_SMARTPHONE,
-      AD_UNIT_TABLET,
-      OVERLAY_CHECK,
-      PAGE_URL,
-    ].concat(targetingDataKeys)
+  validateData(data, [], validateProps);
+
+  // array of passed visx attributes to amp-ad tag
+  const visxProps = dataKeys.filter(visxProp =>
+    validateProps.includes(visxProp)
   );
 
   userAssert(
@@ -54,7 +56,7 @@ export function visx(global, data) {
         dataKey
       )
     ),
-    'at least 1 ad unit id must be specified'
+    'visx: at least 1 ad unit id must be specified'
   );
 
   const {document} = global;
@@ -62,8 +64,8 @@ export function visx(global, data) {
 
   adTag.setAttribute('data-visx', '');
 
-  filterVisxProps(dataKeys).forEach(dataKey => {
-    adTag.setAttribute('data-' + kebabify(dataKey), data[dataKey]);
+  visxProps.forEach(dataKey => {
+    adTag.dataset[dataKey] = data[dataKey];
   });
 
   document.getElementById('c').appendChild(adTag);
@@ -71,30 +73,4 @@ export function visx(global, data) {
   loadScript(global, 'https://s.visx.net/tag.js', undefined, () => {
     global.context.noContentAvailable();
   });
-}
-
-/**
- * @param {Array<string>} dataKeys
- * @return {Array<string>}
- */
-function filterVisxProps(dataKeys) {
-  return dataKeys.filter(
-    dataKey =>
-      [
-        AD_UNIT,
-        AD_UNIT_DESKTOP,
-        AD_UNIT_SMARTPHONE,
-        AD_UNIT_TABLET,
-        OVERLAY_CHECK,
-        PAGE_URL,
-      ].includes(dataKey) || TARGETING_RE.test(dataKey)
-  );
-}
-
-/**
- * @param {string} string
- * @return {string}
- */
-function kebabify(string) {
-  return string.replace(/([A-Z])/g, '-$1').toLowerCase();
 }
