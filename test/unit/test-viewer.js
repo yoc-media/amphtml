@@ -27,7 +27,7 @@ import {
   removeFragment,
 } from '../../src/url';
 
-describes.sandboxed('Viewer', {}, () => {
+describes.sandboxed('Viewer', {}, env => {
   let windowMock;
   let viewer;
   let windowApi;
@@ -67,7 +67,7 @@ describes.sandboxed('Viewer', {}, () => {
   }
 
   beforeEach(() => {
-    clock = sandbox.useFakeTimers();
+    clock = env.sandbox.useFakeTimers();
     events = {};
     const WindowApi = function() {};
     windowApi = new WindowApi();
@@ -100,12 +100,21 @@ describes.sandboxed('Viewer', {}, () => {
       querySelector() {
         return parseUrlDeprecated('http://www.example.com/');
       },
+      head: {
+        nodeType: /* ELEMENT */ 1,
+        querySelector() {
+          return null;
+        },
+        querySelectorAll() {
+          return [];
+        },
+      },
     };
     windowApi.navigator = window.navigator;
     windowApi.history = {
       replaceState: () => {},
     };
-    sandbox
+    env.sandbox
       .stub(windowApi.history, 'replaceState')
       .callsFake((state, title, url) => {
         windowApi.location.href = url;
@@ -114,16 +123,16 @@ describes.sandboxed('Viewer', {}, () => {
     ampdoc = Services.ampdocServiceFor(windowApi).getSingleDoc();
 
     params = {'origin': 'g.com'};
-    sandbox
+    env.sandbox
       .stub(ampdoc, 'getParam')
       .callsFake(name => (name in params ? params[name] : null));
 
     installPlatformService(windowApi);
     installTimerService(windowApi);
     installDocumentInfoServiceForDoc(windowApi.document);
-    errorStub = sandbox.stub(dev(), 'error');
-    expectedErrorStub = sandbox.stub(dev(), 'expectedError');
-    windowMock = sandbox.mock(windowApi);
+    errorStub = env.sandbox.stub(dev(), 'error');
+    expectedErrorStub = env.sandbox.stub(dev(), 'expectedError');
+    windowMock = env.sandbox.mock(windowApi);
     viewer = new ViewerImpl(ampdoc);
   });
 
@@ -436,7 +445,7 @@ describes.sandboxed('Viewer', {}, () => {
       const fragment = '#replaceUrl=http://www.example.com/two&b=1';
       setUrl('http://www.example.com/one' + fragment);
       windowApi.history.replaceState.restore();
-      sandbox.stub(windowApi.history, 'replaceState').callsFake(() => {
+      env.sandbox.stub(windowApi.history, 'replaceState').callsFake(() => {
         throw new Error('intentional');
       });
       const viewer = new ViewerImpl(ampdoc);
@@ -476,7 +485,7 @@ describes.sandboxed('Viewer', {}, () => {
     it('should NOT replace URL in shadow doc', () => {
       const fragment = '#replaceUrl=http://www.example.com/two&b=1';
       setUrl('http://www.example.com/one' + fragment);
-      sandbox.stub(ampdoc, 'isSingleDoc').callsFake(() => false);
+      env.sandbox.stub(ampdoc, 'isSingleDoc').callsFake(() => false);
       const viewer = new ViewerImpl(ampdoc);
       viewer.replaceUrl(viewer.getParam('replaceUrl'));
       expect(windowApi.history.replaceState).to.not.be.called;
@@ -513,7 +522,7 @@ describes.sandboxed('Viewer', {}, () => {
     });
 
     it('should parse "hidden" as "prerender" before first visible', () => {
-      sandbox.stub(ampdoc, 'getLastVisibleTime').callsFake(() => null);
+      env.sandbox.stub(ampdoc, 'getLastVisibleTime').callsFake(() => null);
       viewer.receiveMessage('visibilitychange', {
         state: 'hidden',
       });
@@ -521,7 +530,7 @@ describes.sandboxed('Viewer', {}, () => {
     });
 
     it('should parse "hidden" as "inactive" after first visible', () => {
-      sandbox.stub(ampdoc, 'getLastVisibleTime').callsFake(() => 1);
+      env.sandbox.stub(ampdoc, 'getLastVisibleTime').callsFake(() => 1);
       viewer.receiveMessage('visibilitychange', {
         state: 'hidden',
       });
@@ -697,6 +706,7 @@ describes.sandboxed('Viewer', {}, () => {
     });
 
     it('should post broadcast event but not fail w/o messaging', () => {
+      expectAsyncConsoleError(/No messaging channel/);
       const result = viewer.broadcast({type: 'type1'});
       expect(viewer.messageQueue_.length).to.equal(0);
       clock.tick(20001);
@@ -728,6 +738,7 @@ describes.sandboxed('Viewer', {}, () => {
     });
 
     it('should timeout messaging channel', () => {
+      expectAsyncConsoleError(/No messaging channel/);
       let mResolved = false;
       const m = viewer.sendMessageAwaitResponse('event', {}).then(() => {
         mResolved = true;
@@ -845,11 +856,11 @@ describes.sandboxed('Viewer', {}, () => {
           /* cancelUnsent */ true
         );
 
-        const delivererSpy = sandbox.stub();
+        const delivererSpy = env.sandbox.stub();
         delivererSpy.returns(Promise.resolve());
 
         viewer.setMessageDeliverer(delivererSpy, 'https://www.example.com');
-        sinon.assert.callOrder(
+        env.sandbox.assert.callOrder(
           delivererSpy.withArgs('event-b', {value: 2}, true),
           delivererSpy.withArgs('event-a', {value: 3}, true)
         );
@@ -875,7 +886,7 @@ describes.sandboxed('Viewer', {}, () => {
           /* cancelUnsent */ true
         );
 
-        const delivererSpy = sandbox.stub();
+        const delivererSpy = env.sandbox.stub();
         delivererSpy
           .withArgs('event-a', {value: 2}, true)
           .returns(Promise.resolve('result-2'));
@@ -1498,7 +1509,7 @@ describes.sandboxed('Viewer', {}, () => {
         expect(
           expectedErrorStub.calledWith(
             'Viewer',
-            sinon.match(arg => {
+            env.sandbox.match(arg => {
               return !!arg.match(/Untrusted viewer referrer override/);
             })
           )
@@ -1611,7 +1622,7 @@ describes.sandboxed('Viewer', {}, () => {
         expect(
           expectedErrorStub.calledWith(
             'Viewer',
-            sinon.match(arg => {
+            env.sandbox.match(arg => {
               return !!arg.match(/Untrusted viewer url override/);
             })
           )
@@ -1635,7 +1646,7 @@ describes.sandboxed('Viewer', {}, () => {
         expect(
           expectedErrorStub.calledWith(
             'Viewer',
-            sinon.match(arg => {
+            env.sandbox.match(arg => {
               return !!arg.match(/Untrusted viewer url override/);
             })
           )
@@ -1659,7 +1670,7 @@ describes.sandboxed('Viewer', {}, () => {
         expect(
           expectedErrorStub.calledWith(
             'Viewer',
-            sinon.match(arg => {
+            env.sandbox.match(arg => {
               return !!arg.match(/Untrusted viewer url override/);
             })
           )

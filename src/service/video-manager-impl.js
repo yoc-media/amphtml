@@ -29,6 +29,7 @@ import {
   VideoAttributes,
   VideoEvents,
   VideoServiceSignals,
+  setIsMediaComponent,
   userInteractedWith,
   videoAnalyticsCustomEventTypeKey,
 } from '../video-interface';
@@ -192,7 +193,7 @@ export class VideoManager {
     const {element} = entry.video;
     element.dispatchCustomEvent(VideoEvents.REGISTERED);
 
-    element.classList.add('i-amphtml-video-component');
+    setIsMediaComponent(element);
 
     // Unlike events, signals are permanent. We can wait for `REGISTERED` at any
     // moment in the element's lifecycle and the promise will resolve
@@ -317,14 +318,23 @@ export class VideoManager {
   }
 
   /**
-   * Gets the current analytics details for the given video.
+   * Gets the current analytics details property for the given video.
    * Fails silently if the video is not registered.
-   * @param {!AmpElement} videoElement
-   * @return {!Promise<!VideoAnalyticsDetailsDef|undefined>}
+   * @param {string} id
+   * @param {string} property
+   * @return {!Promise<string>}
    */
-  getAnalyticsDetails(videoElement) {
+  getVideoStateProperty(id, property) {
+    const root = this.ampdoc.getRootNode();
+    const videoElement = user().assertElement(
+      root.getElementById(/** @type {string} */ (id)),
+      `Could not find an element with id="${id}" for VIDEO_STATE`
+    );
     const entry = this.getEntryForElement_(videoElement);
-    return entry ? entry.getAnalyticsDetails() : Promise.resolve();
+    return (entry
+      ? entry.getAnalyticsDetails()
+      : Promise.resolve()
+    ).then(details => (details ? details[property] : ''));
   }
 
   /**
@@ -1321,8 +1331,8 @@ function isLandscape(win) {
 /** @visibleForTesting */
 export const PERCENTAGE_INTERVAL = 5;
 
-/** @private */
-const PERCENTAGE_FREQUENCY_WHEN_PAUSED_MS = 500;
+/** @visibleForTesting */
+export const PERCENTAGE_FREQUENCY_WHEN_PAUSED_MS = 500;
 
 /** @private */
 const PERCENTAGE_FREQUENCY_MIN_MS = 250;
@@ -1353,6 +1363,15 @@ function calculateActualPercentageFrequencyMs(durationSeconds) {
     PERCENTAGE_FREQUENCY_MAX_MS
   );
 }
+
+/**
+ * Handle cases such as livestreams or videos with no duration information is
+ * available, where 1 second is the default duration for some video players.
+ * @param {?number=} duration
+ * @return {boolean}
+ */
+const isDurationFiniteNonZero = duration =>
+  !!duration && !isNaN(duration) && duration > 1;
 
 /** @visibleForTesting */
 export class AnalyticsPercentageTracker {
@@ -1433,8 +1452,7 @@ export class AnalyticsPercentageTracker {
     const {video} = this.entry_;
     const duration = video.getDuration();
 
-    // Livestreams or videos with no duration information available.
-    if (!duration || isNaN(duration) || duration <= 0) {
+    if (!isDurationFiniteNonZero(duration)) {
       return false;
     }
 
@@ -1486,6 +1504,12 @@ export class AnalyticsPercentageTracker {
     }
 
     const duration = video.getDuration();
+    // TODO(#25954): Further investigate root cause and remove this protection
+    // if appropriate.
+    if (!isDurationFiniteNonZero(duration)) {
+      timer.delay(calculateAgain, PERCENTAGE_FREQUENCY_WHEN_PAUSED_MS);
+      return;
+    }
 
     const frequencyMs = calculateActualPercentageFrequencyMs(duration);
 

@@ -68,7 +68,7 @@ export class AnalyticsConfig {
 
     return Promise.all([this.fetchRemoteConfig_(), this.fetchVendorConfig_()])
       .then(this.processConfigs_.bind(this))
-      .then(this.addExperimentParams_.bind(this))
+      .then(this.checkWarningMessage_.bind(this))
       .then(() => this.config_);
   }
 
@@ -97,11 +97,6 @@ export class AnalyticsConfig {
    * @return {!Promise<undefined>}
    */
   fetchVendorConfig_() {
-    // eslint-disable-next-line no-undef
-    if (!ANALYTICS_VENDOR_SPLIT) {
-      return Promise.resolve();
-    }
-
     const type = this.element_.getAttribute('type');
     if (!type) {
       return Promise.resolve();
@@ -124,35 +119,6 @@ export class AnalyticsConfig {
           user().error(TAG, 'Error loading vendor config: ', vendorUrl, err);
         }
       );
-  }
-
-  /**
-   * TODO: cleanup #22757 @jonathantyng
-   * Append special param to pageview request for RC and experiment builds
-   * for the googleanalytics component. This is to track pageview changes
-   * in AB experiment
-   */
-  addExperimentParams_() {
-    const type = this.element_.getAttribute('type');
-    const rtv = getMode().rtvVersion;
-    const isRc = rtv ? rtv.substring(0, 2) === '03' : false;
-    // eslint-disable-next-line no-undef
-    const isExperiment = ANALYTICS_VENDOR_SPLIT;
-
-    if (
-      type === 'googleanalytics' &&
-      (isRc || isExperiment) &&
-      this.config_['requests']
-    ) {
-      if (this.config_['requests']['pageview']) {
-        this.config_['requests']['pageview'][
-          'baseUrl'
-        ] += `&aae=${isExperiment}`;
-      }
-      if (this.config_['requests']['timing']) {
-        this.config_['requests']['timing']['baseUrl'] += `&aae=${isExperiment}`;
-      }
-    }
   }
 
   /**
@@ -268,6 +234,28 @@ export class AnalyticsConfig {
           }
         );
     });
+  }
+
+  /**
+   * Check if config has warning, display on console and
+   * remove the property.
+   * @private
+   */
+  checkWarningMessage_() {
+    if (this.config_['warningMessage']) {
+      const TAG = this.getName_();
+      const type = this.element_.getAttribute('type');
+      const remoteConfigUrl = this.element_.getAttribute('config');
+
+      user().warn(
+        TAG,
+        'Warning from analytics vendor%s%s: %s',
+        type ? ' ' + type : '',
+        remoteConfigUrl ? ' with remote config url ' + remoteConfigUrl : '',
+        String(this.config_['warningMessage'])
+      );
+      delete this.config_['warningMessage'];
+    }
   }
 
   /**

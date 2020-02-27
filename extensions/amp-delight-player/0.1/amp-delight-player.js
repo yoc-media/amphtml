@@ -119,7 +119,11 @@ class AmpDelightPlayer extends AMP.BaseElement {
    * @override
    */
   preconnectCallback(onLayout) {
-    this.preconnect.url(this.baseURL_, onLayout);
+    Services.preconnectFor(this.win).url(
+      this.getAmpDoc(),
+      this.baseURL_,
+      onLayout
+    );
   }
 
   /** @override */
@@ -241,7 +245,7 @@ class AmpDelightPlayer extends AMP.BaseElement {
     }
 
     const data = objOrParseJson(getData(event));
-    if (data === undefined || data['type'] === undefined) {
+    if (data == null || !data['type']) {
       return; // We only process valid JSON.
     }
 

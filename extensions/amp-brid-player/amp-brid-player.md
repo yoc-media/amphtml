@@ -5,6 +5,7 @@ formats:
 teaser:
   text: Displays a Brid.tv player.
 ---
+
 <!---
 Copyright 2015 The AMP HTML Authors. All Rights Reserved.
 
@@ -22,6 +23,7 @@ limitations under the License.
 -->
 
 # amp-brid-player
+
 An <code>amp-brid-player</code> displays the Brid Player used in <a href="https://www.brid.tv/">Brid.tv</a> Video Platform.
 
 <table>
@@ -49,15 +51,18 @@ Example:
 
 ```html
 <amp-brid-player
-    data-partner="264"
-    data-player="4144"
-    data-video="13663"
-    layout="responsive"
-    width="480" height="270">
+  data-partner="264"
+  data-player="4144"
+  data-video="13663"
+  layout="responsive"
+  width="480"
+  height="270"
+>
 </amp-brid-player>
 ```
 
 ## Attributes
+
 <table>
   <tr>
     <td width="40%"><strong>autoplay</strong></td>
@@ -97,6 +102,11 @@ Example:
   <tr>
     <td width="40%"><strong>common attributes</strong></td>
     <td>This element includes <a href="https://amp.dev/documentation/guides-and-tutorials/learn/common_attributes">common attributes</a> extended to AMP components.</td>
+  </tr>
+  <tr>
+    <td width="40%"><strong>dock</strong></td>
+    <td><strong>Requires <code>amp-video-docking</code> extension.</strong> If this attribute is present and the video is playing manually, the video will be "minimized" and fixed to a corner or an element when the user scrolls out of the video component's visual area.
+    For more details, see <a href="https://amp.dev/documentation/components/amp-video-docking">documentation on the docking extension itself.</a></td>
   </tr>
 </table>
 

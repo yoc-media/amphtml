@@ -45,7 +45,6 @@ import {WindowInterface} from '../window-interface';
 import {getTrackImpressionPromise} from '../impression.js';
 import {hasOwn} from '../utils/object';
 import {internalRuntimeVersion} from '../internal-version';
-import {tryResolve} from '../utils/promise';
 
 /** @private @const {string} */
 const TAG = 'UrlReplacements';
@@ -262,12 +261,6 @@ export class GlobalVariableSource extends VariableSource {
       return this.getFragmentParamData_(param, defaultValue);
     });
 
-    // Returns the first item in the ancestorOrigins array, if available.
-    this.setAsync(
-      'ANCESTOR_ORIGIN',
-      this.getViewerIntegrationValue_('ancestorOrigin', 'ANCESTOR_ORIGIN')
-    );
-
     /**
      * Stores client ids that were generated during this page view
      * indexed by scope.
@@ -349,7 +342,7 @@ export class GlobalVariableSource extends VariableSource {
           const variant = variants[/** @type {string} */ (experiment)];
           userAssert(
             variant !== undefined,
-            'The value passed to VARIANT() is not a valid experiment name:' +
+            'The value passed to VARIANT() is not a valid experiment in <amp-experiment>:' +
               experiment
           );
           // When no variant assigned, use reserved keyword 'none'.
@@ -394,36 +387,6 @@ export class GlobalVariableSource extends VariableSource {
       })
     );
 
-    // Attempt to returns user location data if available, otherwise null.
-    this.setAsync(
-      'AMP_USER_LOCATION',
-      /** @type {AsyncResolverDef} */ (type => {
-        // Type may be "","lat","lon", and undefined
-        return this.getUserLocation_(userLocationService => {
-          return userLocationService.getReplacementLocation(
-            'AMP_USER_LOCATION',
-            type
-          );
-        }, 'AMP_USER_LOCATION');
-      })
-    );
-
-    // Returns user location data only if available,
-    // and waits for the user to approve.
-    this.setAsync(
-      'AMP_USER_LOCATION_POLL',
-      /** @type {AsyncResolverDef} */ (type => {
-        // Type may be "","lat","lon", and undefined
-        return this.getUserLocation_(userLocationService => {
-          return userLocationService.getReplacementLocation(
-            'AMP_USER_LOCATION_POLL',
-            type,
-            /*opt_poll*/ true
-          );
-        }, 'AMP_USER_LOCATION_POLL');
-      })
-    );
-
     // Returns incoming share tracking fragment.
     this.setAsync(
       'SHARE_TRACKING_INCOMING',
@@ -453,23 +416,6 @@ export class GlobalVariableSource extends VariableSource {
 
     // Returns the user's time-zone offset from UTC, in minutes.
     this.set('TIMEZONE', dateMethod('getTimezoneOffset'));
-
-    // Returns the IANA timezone code
-    this.set('TIMEZONE_CODE', () => {
-      let tzCode;
-      if ('Intl' in win && 'DateTimeFormat' in win.Intl) {
-        // It could be undefined (i.e. IE11)
-        tzCode = new Intl.DateTimeFormat().resolvedOptions().timeZone;
-      }
-
-      return tzCode || '';
-    });
-
-    // Returns a promise resolving to viewport.getScrollTop.
-    this.set('SCROLL_TOP', () => viewport.getScrollTop());
-
-    // Returns a promise resolving to viewport.getScrollLeft.
-    this.set('SCROLL_LEFT', () => viewport.getScrollLeft());
 
     // Returns a promise resolving to viewport.getScrollHeight.
     this.set('SCROLL_HEIGHT', () => viewport.getScrollHeight());
@@ -663,41 +609,9 @@ export class GlobalVariableSource extends VariableSource {
     });
 
     this.setAsync('VIDEO_STATE', (id, property) => {
-      const root = this.ampdoc.getRootNode();
-      const video = user().assertElement(
-        root.getElementById(/** @type {string} */ (id)),
-        `Could not find an element with id="${id}" for VIDEO_STATE`
-      );
-      return Services.videoManagerForDoc(this.ampdoc)
-        .getAnalyticsDetails(video)
-        .then(details => (details ? details[property] : ''));
-    });
-
-    this.setAsync(
-      'STORY_PAGE_INDEX',
-      this.getStoryValue_('pageIndex', 'STORY_PAGE_INDEX')
-    );
-
-    this.setAsync(
-      'STORY_PAGE_ID',
-      this.getStoryValue_('pageId', 'STORY_PAGE_ID')
-    );
-
-    this.setAsync('FIRST_CONTENTFUL_PAINT', () => {
-      return tryResolve(() =>
-        Services.performanceFor(win).getFirstContentfulPaint()
-      );
-    });
-
-    this.setAsync('FIRST_VIEWPORT_READY', () => {
-      return tryResolve(() =>
-        Services.performanceFor(win).getFirstViewportReady()
-      );
-    });
-
-    this.setAsync('MAKE_BODY_VISIBLE', () => {
-      return tryResolve(() =>
-        Services.performanceFor(win).getMakeBodyVisible()
+      return Services.videoManagerForDoc(this.ampdoc).getVideoStateProperty(
+        id,
+        property
       );
     });
 
@@ -710,7 +624,7 @@ export class GlobalVariableSource extends VariableSource {
         if (!bind) {
           return '';
         }
-        return bind.getStateValue(/** @type {string} */ (key));
+        return bind.getStateValue(/** @type {string} */ (key)) || '';
       });
     });
   }
@@ -853,28 +767,6 @@ export class GlobalVariableSource extends VariableSource {
   }
 
   /**
-   * Resolves the value via the user location service.
-   * @param {function(Object<string, string>)} getter
-   * @param {string} expr
-   * @return {!Promise<Object<string,(string|Array<string>)>>}
-   * @template T
-   * @private
-   */
-  getUserLocation_(getter, expr) {
-    const element = this.ampdoc.getHeadNode();
-    return Services.userLocationForDocOrNull(element).then(
-      userLocationService => {
-        userAssert(
-          userLocationService,
-          'To use variable %s, amp-user-location should be configured',
-          expr
-        );
-        return getter(userLocationService);
-      }
-    );
-  }
-
-  /**
    * Resolves the value via amp-share-tracking's service.
    * @param {function(!ShareTrackingFragmentsDef):T} getter
    * @param {string} expr
@@ -895,50 +787,6 @@ export class GlobalVariableSource extends VariableSource {
         expr
       );
       return getter(/** @type {!ShareTrackingFragmentsDef} */ (fragments));
-    });
-  }
-
-  /**
-   * Resolves the value via amp-story's service.
-   * @param {string} property
-   * @param {string} name
-   * @return {!AsyncResolverDef}
-   * @private
-   */
-  getStoryValue_(property, name) {
-    return () => {
-      const service = Services.storyVariableServiceForOrNull(this.ampdoc.win);
-      return service.then(storyVariables => {
-        userAssert(
-          storyVariables,
-          'To use variable %s amp-story should be configured',
-          name
-        );
-        return storyVariables[property];
-      });
-    };
-  }
-
-  /**
-   * Resolves the value via amp-viewer-integration's service.
-   * @param {string} property
-   * @param {string} name
-   * @return {!AsyncResolverDef}
-   * @private
-   */
-  getViewerIntegrationValue_(property, name) {
-    return /** @type {!AsyncResolverDef} */ ((param, defaultValue = '') => {
-      const service = Services.viewerIntegrationVariableServiceForOrNull(
-        this.ampdoc.win
-      );
-      return service.then(viewerIntegrationVariables => {
-        userAssert(
-          viewerIntegrationVariables,
-          'To use variable %s amp-viewer-integration must be installed',
-          name
-        );
-        return viewerIntegrationVariables[property](param, defaultValue);
-      });
     });
   }
 }
@@ -1156,15 +1004,9 @@ export class UrlReplacements {
       return true;
     }
 
-    const meta = this.ampdoc
-      .getRootNode()
-      .querySelector('meta[name=amp-link-variable-allowed-origin]');
-
-    if (meta && meta.hasAttribute('content')) {
-      const whitelist = meta
-        .getAttribute('content')
-        .trim()
-        .split(/\s+/);
+    const meta = this.ampdoc.getMetaByName('amp-link-variable-allowed-origin');
+    if (meta) {
+      const whitelist = meta.trim().split(/\s+/);
       for (let i = 0; i < whitelist.length; i++) {
         if (url.origin == parseUrlDeprecated(whitelist[i]).origin) {
           return true;

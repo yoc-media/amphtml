@@ -36,26 +36,16 @@ import {
   setParentWindow,
 } from '../../src/service';
 import {loadPromise} from '../../src/event-helper';
-import {toggleExperiment} from '../../src/experiments';
+import {toggleAmpdocFieForTesting} from '../../src/ampdoc-fie';
 
 describe('service', () => {
-  let sandbox;
-
-  beforeEach(() => {
-    sandbox = sinon.sandbox;
-  });
-
-  afterEach(() => {
-    sandbox.restore();
-  });
-
   describe('disposable interface', () => {
     let disposable;
     let nonDisposable;
 
     beforeEach(() => {
       nonDisposable = {};
-      disposable = {dispose: sandbox.spy()};
+      disposable = {dispose: window.sandbox.spy()};
     });
 
     it('should test disposable interface', () => {
@@ -85,7 +75,7 @@ describe('service', () => {
           this.count = ++count;
         }
       };
-      factory = sandbox.spy(() => {
+      factory = window.sandbox.spy(() => {
         return new Class();
       });
       resetServiceForTesting(window, 'a');
@@ -243,7 +233,7 @@ describe('service', () => {
           this.count = ++count;
         }
       };
-      factory = sandbox.spy(function() {
+      factory = window.sandbox.spy(function() {
         return new Class();
       });
       windowApi = {
@@ -255,7 +245,7 @@ describe('service', () => {
         isSingleDoc: () => false,
         win: windowApi,
       };
-      ampdocMock = sandbox.mock(ampdoc);
+      ampdocMock = window.sandbox.mock(ampdoc);
       ampdocServiceApi = {getAmpDoc: () => ampdoc};
       registerServiceBuilder(windowApi, 'ampdoc', function() {
         return ampdocServiceApi;
@@ -449,9 +439,10 @@ describe('service', () => {
     });
 
     it('should dispose disposable services', () => {
+      expectAsyncConsoleError(/intentional/);
       const disposableFactory = function() {
         return {
-          dispose: sandbox.spy(),
+          dispose: window.sandbox.spy(),
         };
       };
       registerServiceBuilderForDoc(node, 'a', disposableFactory);
@@ -459,7 +450,7 @@ describe('service', () => {
 
       registerServiceBuilderForDoc(node, 'b', function() {
         return {
-          dispose: sandbox.stub().throws('intentional'),
+          dispose: window.sandbox.stub().throws('intentional'),
         };
       });
       const disposableWithError = getServiceForDoc(node, 'b');
@@ -488,7 +479,7 @@ describe('service', () => {
       // Window disposable is not touched.
       expect(windowDisposable.dispose).to.not.be.called;
 
-      // Deffered.
+      // Deferred.
       registerServiceBuilderForDoc(node, 'c', disposableFactory);
       const disposableDeferred = getServiceForDoc(node, 'c');
       expect(disposableDeferred.dispose).to.not.be.called;
@@ -529,7 +520,7 @@ describe('service', () => {
       });
 
       afterEach(() => {
-        toggleExperiment(windowApi, 'ampdoc-fie', false);
+        toggleAmpdocFieForTesting(windowApi, false);
       });
 
       it('should return the service via node', () => {
@@ -553,7 +544,7 @@ describe('service', () => {
       });
 
       it('should find ampdoc and return its service', () => {
-        toggleExperiment(windowApi, 'ampdoc-fie', true);
+        toggleAmpdocFieForTesting(windowApi, true);
         const fromChildNode = getExistingServiceForDocInEmbedScope(
           childWinNode,
           'c'
@@ -568,12 +559,12 @@ describe('service', () => {
       });
 
       it('should not fallback embedded ampdoc to parent', () => {
-        toggleExperiment(windowApi, 'ampdoc-fie', true);
+        toggleAmpdocFieForTesting(windowApi, true);
         const childAmpdoc = {
           isSingleDoc: () => false,
           win: windowApi,
         };
-        sandbox.stub(ampdocServiceApi, 'getAmpDoc').callsFake(node => {
+        window.sandbox.stub(ampdocServiceApi, 'getAmpDoc').callsFake(node => {
           if (node == childWinNode || node == grandChildWinNode) {
             return childAmpdoc;
           }
@@ -593,13 +584,13 @@ describe('service', () => {
       });
 
       it('should override services on embedded ampdoc', () => {
-        toggleExperiment(windowApi, 'ampdoc-fie', true);
+        toggleAmpdocFieForTesting(windowApi, true);
         const childAmpdoc = {
           isSingleDoc: () => false,
           win: windowApi,
         };
         registerServiceBuilderForDoc(childAmpdoc, 'c', factory);
-        sandbox.stub(ampdocServiceApi, 'getAmpDoc').callsFake(node => {
+        window.sandbox.stub(ampdocServiceApi, 'getAmpDoc').callsFake(node => {
           if (node == childWinNode || node == grandChildWinNode) {
             return childAmpdoc;
           }
@@ -663,7 +654,7 @@ describe('service', () => {
           },
         };
         nonEmbeddable = {};
-        embeddable = {installInEmbedWindow: sandbox.spy()};
+        embeddable = {installInEmbedWindow: window.sandbox.spy()};
         registerServiceBuilderForDoc(ampdoc, 'embeddable', function() {
           return embeddable;
         });

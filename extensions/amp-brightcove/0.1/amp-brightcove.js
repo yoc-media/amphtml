@@ -89,7 +89,10 @@ class AmpBrightcove extends AMP.BaseElement {
 
   /** @override */
   preconnectCallback() {
-    this.preconnect.url('https://players.brightcove.net');
+    Services.preconnectFor(this.win).url(
+      this.getAmpDoc(),
+      'https://players.brightcove.net'
+    );
   }
 
   /** @override */
@@ -182,7 +185,7 @@ class AmpBrightcove extends AMP.BaseElement {
     }
 
     const data = objOrParseJson(eventData);
-    if (data === undefined) {
+    if (data == null) {
       return; // We only process valid JSON.
     }
 

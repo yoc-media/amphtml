@@ -154,7 +154,6 @@ export function getTimingDataSync(win, startEvent, endEvent) {
  * @param {!Window} win
  * @param {string} attribute
  * @return {ResolverReturnDef}
- * @private
  */
 export function getNavigationData(win, attribute) {
   const navigationInfo = win['performance'] && win['performance']['navigation'];
@@ -279,7 +278,7 @@ export class VariableSource {
     if (!this.initialized_) {
       this.initialize_();
     }
-    const all = Object.assign({}, this.replacements_, opt_bindings);
+    const all = {...this.replacements_, ...opt_bindings};
     return this.buildExpr_(Object.keys(all), opt_whiteList);
   }
 
@@ -340,15 +339,10 @@ export class VariableSource {
       return this.variableWhitelist_;
     }
 
-    const {head} = this.ampdoc.getRootNode();
-    if (!head) {
-      return null;
-    }
-
     // A meta[name="amp-allowed-url-macros"] tag, if present,
     // contains, in its content attribute, a whitelist of variable substitution.
-    const meta = head.querySelector('meta[name="amp-allowed-url-macros"]');
-    if (!meta) {
+    const meta = this.ampdoc.getMetaByName('amp-allowed-url-macros');
+    if (meta === null) {
       return null;
     }
 
@@ -356,10 +350,7 @@ export class VariableSource {
      * The whitelist of variables allowed for variable substitution.
      * @private {?Array<string>}
      */
-    this.variableWhitelist_ = meta
-      .getAttribute('content')
-      .split(',')
-      .map(variable => variable.trim());
+    this.variableWhitelist_ = meta.split(',').map(variable => variable.trim());
     return this.variableWhitelist_;
   }
 }

@@ -24,7 +24,7 @@ import {Services} from '../../../src/services';
 import {closestAncestorElementBySelector} from '../../../src/dom';
 import {computedStyle} from '../../../src/style';
 import {createCustomEvent, getDetail} from '../../../src/event-helper';
-import {dev, devAssert} from '../../../src/log';
+import {dev, devAssert, userAssert} from '../../../src/log';
 import {dict} from '../../../src/utils/object';
 import {htmlFor} from '../../../src/static-template';
 import {isLayoutSizeDefined} from '../../../src/layout';
@@ -45,8 +45,16 @@ class AmpCarousel extends AMP.BaseElement {
   setupActions_() {
     this.registerAction(
       'goToSlide',
-      ({args, trust}) => {
-        this.carousel_.goToSlide(args['index'] || 0, {
+      actionInvocation => {
+        const {args, trust} = actionInvocation;
+        const slide = Number(args['index'] || 0);
+        userAssert(
+          !isNaN(slide),
+          'Unexpected slide index for goToSlide action: %s. %s',
+          args['index'],
+          this.element
+        );
+        this.carousel_.goToSlide(slide, {
           actionSource: this.getActionSource_(trust),
         });
       },
@@ -54,7 +62,8 @@ class AmpCarousel extends AMP.BaseElement {
     );
     this.registerAction(
       'toggleAutoplay',
-      ({args}) => {
+      actionInvocation => {
+        const {args} = actionInvocation;
         // args will be `null` if not present, so we cannot use a default value above
         const toggle = args ? args['toggleOn'] : undefined;
         this.toggleAutoplay_(toggle);
@@ -212,17 +221,17 @@ class AmpCarousel extends AMP.BaseElement {
 
   /** @override */
   pauseCallback() {
-    this.carousel_.pauseAutoAdvance();
+    this.carousel_.pauseLayout();
   }
 
   /** @override */
   resumeCallback() {
-    this.carousel_.resumeAutoAdvance();
+    this.carousel_.resumeLayout();
   }
 
   /** @override */
   mutatedAttributesCallback(mutations) {
-    if (mutations['slide']) {
+    if (mutations['slide'] !== undefined) {
       this.carousel_.goToSlide(Number(mutations['slide']));
     }
   }
@@ -310,7 +319,7 @@ class AmpCarousel extends AMP.BaseElement {
    * @return {!ActionSource}
    */
   getActionSource_(trust) {
-    return trust == ActionTrust.HIGH
+    return trust >= ActionTrust.DEFAULT
       ? ActionSource.GENERIC_HIGH_TRUST
       : ActionSource.GENERIC_LOW_TRUST;
   }
@@ -479,6 +488,11 @@ class AmpCarousel extends AMP.BaseElement {
     const isSlides = type == CarouselType.SLIDES;
 
     this.type_ = isSlides ? CarouselType.SLIDES : CarouselType.CAROUSEL;
+    // Use center alignment for slides to make sure fractional widths
+    // do not cause the wrong slide to be considered as active. For example,
+    // a slide is positioned at 100.5px, but the updated scroll position is
+    // truncated to 100px.
+    this.carousel_.updateAlignment(isSlides ? 'center' : 'start');
     this.carousel_.updateHideScrollbar(isSlides);
     this.carousel_.updateMixedLength(!isSlides);
     this.carousel_.updateSnap(isSlides);
@@ -510,13 +524,27 @@ class AmpCarousel extends AMP.BaseElement {
   }
 
   /**
-   * Updates the current index, resuming the current slide and pausing all
-   * others.
+   * Updates the current index, triggering actions and analytics events.
    * @param {number} index
+   * @param {!ActionSource} actionSource
    */
-  updateCurrentIndex_(index) {
+  updateCurrentIndex_(index, actionSource) {
     const prevIndex = this.currentIndex_;
     this.currentIndex_ = index;
+
+    // Ignore the first indexChange, we do not want to trigger any events.
+    if (prevIndex == null) {
+      return;
+    }
+
+    const data = dict({'index': index});
+    const name = 'slideChange';
+    const isHighTrust = this.isHighTrustActionSource_(actionSource);
+    const trust = isHighTrust ? ActionTrust.HIGH : ActionTrust.LOW;
+
+    const action = createCustomEvent(this.win, `slidescroll.${name}`, data);
+    this.action_.trigger(this.element, name, action, trust);
+    this.element.dispatchCustomEvent(name, data);
     this.triggerAnalyticsEvent_(prevIndex, index);
   }
 
@@ -611,24 +639,19 @@ class AmpCarousel extends AMP.BaseElement {
    * @param {!Event} event
    */
   onIndexChanged_(event) {
+    const detail = getDetail(event);
+    const index = detail['index'];
+    const actionSource = detail['actionSource'];
+
+    this.hadTouch_ = this.hadTouch_ || actionSource == ActionSource.TOUCH;
+    this.updateUi_();
+
+    // Do not fire events, analytics for type="carousel".
     if (this.type_ == CarouselType.CAROUSEL) {
       return;
     }
 
-    const detail = getDetail(event);
-    const index = detail['index'];
-    const actionSource = detail['actionSource'];
-    const data = dict({'index': index});
-    const name = 'slideChange';
-    const isHighTrust = this.isHighTrustActionSource_(actionSource);
-    const trust = isHighTrust ? ActionTrust.HIGH : ActionTrust.LOW;
-
-    const action = createCustomEvent(this.win, `slidescroll.${name}`, data);
-    this.action_.trigger(this.element, name, action, trust);
-    this.element.dispatchCustomEvent(name, data);
-    this.hadTouch_ = this.hadTouch_ || actionSource == ActionSource.TOUCH;
-    this.updateCurrentIndex_(index);
-    this.updateUi_();
+    this.updateCurrentIndex_(index, actionSource);
   }
 }
 

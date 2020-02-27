@@ -18,12 +18,13 @@ import {Response, fetchPolyfill} from '../../src/polyfills/fetch';
 import {Services} from '../../src/services';
 import {createFormDataWrapper} from '../../src/form-data-wrapper';
 
-describes.sandboxed('fetch', {}, () => {
+describes.sandboxed('fetch', {}, env => {
   describe('fetch method', () => {
+    const methodErrorRegex = /Only one of\s+GET, POST is currently allowed/;
     let xhrCreated;
 
     function setupMockXhr() {
-      const mockXhr = sandbox.useFakeXMLHttpRequest();
+      const mockXhr = env.sandbox.useFakeXMLHttpRequest();
       xhrCreated = new Promise(resolve => (mockXhr.onCreate = resolve));
     }
 
@@ -40,12 +41,7 @@ describes.sandboxed('fetch', {}, () => {
     }
 
     beforeEach(() => {
-      sandbox = sinon.sandbox;
       setupMockXhr();
-    });
-
-    afterEach(() => {
-      sandbox.restore();
     });
 
     it('should allow GET method', () => {
@@ -68,6 +64,7 @@ describes.sandboxed('fetch', {}, () => {
     });
 
     it('should not allow PUT method', () => {
+      expectAsyncConsoleError(methodErrorRegex);
       mockOkResponse();
       return expect(
         fetchPolyfill('/post', {
@@ -76,10 +73,11 @@ describes.sandboxed('fetch', {}, () => {
             hello: 'world',
           },
         })
-      ).to.be.rejectedWith(/Only one of GET, POST is currently allowed./);
+      ).to.be.rejectedWith(methodErrorRegex);
     });
 
     it('should not allow PATCH method', () => {
+      expectAsyncConsoleError(methodErrorRegex);
       mockOkResponse();
       return expect(
         fetchPolyfill('/post', {
@@ -88,10 +86,11 @@ describes.sandboxed('fetch', {}, () => {
             hello: 'world',
           },
         })
-      ).to.be.rejectedWith(/Only one of GET, POST is currently allowed./);
+      ).to.be.rejectedWith(methodErrorRegex);
     });
 
     it('should not allow DELETE method', () => {
+      expectAsyncConsoleError(methodErrorRegex);
       mockOkResponse();
       return expect(
         fetchPolyfill('/post', {
@@ -100,19 +99,19 @@ describes.sandboxed('fetch', {}, () => {
             hello: 'world',
           },
         })
-      ).to.be.rejectedWith(/Only one of GET, POST is currently allowed./);
+      ).to.be.rejectedWith(methodErrorRegex);
     });
 
     it('should allow FormData as body', () => {
       const fakeWin = null;
-      sandbox.stub(Services, 'platformFor').returns({
+      env.sandbox.stub(Services, 'platformFor').returns({
         isIos() {
           return false;
         },
       });
 
       const formData = createFormDataWrapper(fakeWin);
-      sandbox.stub(JSON, 'stringify');
+      env.sandbox.stub(JSON, 'stringify');
       formData.append('name', 'John Miller');
       formData.append('age', 56);
       const post = fetchPolyfill.bind(this, '/post', {
@@ -177,6 +176,7 @@ describes.sandboxed('fetch', {}, () => {
 
   describe('Response', () => {
     const TEST_TEXT = 'this is some test text';
+    const bodyUsedErrorRegex = /Body already used/;
 
     it('should keep default status as 200 OK', () => {
       const response = new Response(TEST_TEXT);
@@ -238,12 +238,13 @@ describes.sandboxed('fetch', {}, () => {
     });
 
     it('should provide text only once', () => {
+      expectAsyncConsoleError(bodyUsedErrorRegex);
       const response = new Response(TEST_TEXT);
       return response.text().then(result => {
         expect(result).to.equal(TEST_TEXT);
         expect(response.text.bind(response), 'should throw').to.throw(
           Error,
-          /Body already used/
+          bodyUsedErrorRegex
         );
       });
     });
@@ -269,11 +270,12 @@ describes.sandboxed('fetch', {}, () => {
     });
 
     it('should not be cloneable if body is already accessed', () => {
+      expectAsyncConsoleError(bodyUsedErrorRegex);
       const response = new Response(TEST_TEXT);
       return response.text().then(() => {
         expect(() => response.clone(), 'should throw').to.throw(
           Error,
-          /Body already used/
+          bodyUsedErrorRegex
         );
       });
     });

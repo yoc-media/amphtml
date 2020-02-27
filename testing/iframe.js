@@ -74,6 +74,7 @@ export function createFixtureIframe(
       [AmpEvents.LOAD_END]: 0,
       [AmpEvents.LOAD_START]: 0,
       [AmpEvents.STUBBED]: 0,
+      [AmpEvents.UNLOAD]: 0,
       [BindEvents.INITIALIZE]: 0,
       [BindEvents.SET_STATE]: 0,
       [BindEvents.RESCAN_TEMPLATE]: 0,
@@ -243,7 +244,9 @@ export function createIframePromise(opt_runtimeOff, opt_beforeLayoutCallback) {
       ).getSingleDoc();
       installExtensionsService(iframe.contentWindow);
       installRuntimeServices(iframe.contentWindow);
-      installCustomElements(iframe.contentWindow);
+      // The anonymous class parameter allows us to detect native classes vs
+      // transpiled classes.
+      installCustomElements(iframe.contentWindow, class {});
       installAmpdocServices(ampdoc);
       Services.resourcesForDoc(ampdoc).ampInitComplete();
       // Act like no other elements were loaded by default.
