@@ -1114,6 +1114,12 @@ const adConfig = jsonConfiguration({
     renderStartImplemented: true,
   },
 
+  'visx': {
+    prefetch: 'https://s.visx.net/tag.js',
+    preconnect: 'https://t.visx.net',
+    renderStartImplemented: true,
+  },
+
   'vmfive': {
     prefetch: 'https://man.vm5apis.com/dist/adn-web-sdk.js',
     preconnect: ['https://vawpro.vm5apis.com', 'https://vahfront.vm5apis.com'],
